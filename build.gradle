@@ -3,6 +3,7 @@ plugins {
     id 'java-library'
 	id 'eclipse'
 	id 'maven-publish'
+	id 'com.jfrog.bintray' version '1.8.4'
 }
 
 group = "org.omixer"
@@ -21,10 +22,33 @@ repositories {
     jcenter()
 }
 
+
 publishing {
 	publications {
-		myLibrary(MavenPublication) {
+		binary(MavenPublication) {
 			from components.java
+			groupId 'org.omixer'
+			artifactId 'omixer-utils'
+			version '1.0'
+		}
+	}
+}
+
+Properties properties = new Properties()
+properties.load(project.rootProject.file('local.properties').newDataInputStream())
+
+bintray {
+	user = properties.getProperty("bintray.user")
+	key = properties.getProperty("bintray.apikey")
+	publications = ['binary']
+	pkg {
+		repo = 'omixer'
+		name = 'omixer-utils'
+		userOrg = user
+		licenses = ['GPL-3.0']
+		vcsUrl = 'https://github.com/omixer/omixer-utils.git'
+		version {
+			name = '1.0'
 		}
 	}
 }
