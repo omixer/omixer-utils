@@ -8,6 +8,13 @@ plugins {
 group = "io.omixer"
 version = '1.0.1'
 
+// Minimum Java version for users of the library
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
 dependencies {
 	testImplementation 'org.spockframework:spock-core:1.1-groovy-2.4'
 }
