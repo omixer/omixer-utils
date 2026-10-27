@@ -6,6 +6,8 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -18,6 +20,15 @@ import io.omixer.utils.readers.impl.SimpleLineProcessor;
 public class FileUtilsTestCase {
 
 	private File matrixFile = new File("src/test/resources/matrix.tsv");
+
+	@Test
+	public void readMatrixKeepsTheHeaderOrderOfColumns() throws IncorrectNumberOfEntriesException, IOException {
+
+		Map<String, List<KeyValue<String, Double>>> matrix = FileUtils.readMatrix(matrixFile, Constants.TAB,
+				new SimpleLineProcessor<String, Double>(String.class, Double.class));
+
+		assertEquals(Arrays.asList("1a", "3a", "2a", "2b", "3b", "4a", "4b", "1b"), new ArrayList<>(matrix.keySet()));
+	}
 
 	@Test
 	public void testReadMatix() throws IncorrectNumberOfEntriesException, IOException {

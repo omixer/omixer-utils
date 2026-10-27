@@ -9,6 +9,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -199,7 +200,9 @@ public final class FileUtils {
 	/**
 	 * 
 	 * Maps the headers of a matrix to the columns
-	 * 
+	 *
+	 * The returned map iterates over the columns in header order
+	 *
 	 * @param <T>
 	 * @param file
 	 * @param delimiter
@@ -220,8 +223,8 @@ public final class FileUtils {
 		try (BufferedReader br = new BufferedReader(new FileReader(file))){
 			// keep the header: [0] = mass , [rest] = sample names
 			final String[] header = br.readLine().split(delimiter);
-			// initialize the matrix
-			matrix = new HashMap<String, List<T>>();
+			// initialize the matrix, keeping the columns in header order
+			matrix = new LinkedHashMap<String, List<T>>();
 
 			// get sample names from header
 			for (int i = lineProcessor.getHeaderSampleStartIndex(); i < header.length; i++) {
