@@ -17,7 +17,9 @@ import java.util.Map.Entry;
 import java.util.function.Function;
 
 import io.omixer.utils.Constants;
+import io.omixer.utils.exceptions.DuplicateColumnException;
 import io.omixer.utils.exceptions.IncorrectNumberOfEntriesException;
+import io.omixer.utils.readers.FileLine;
 import io.omixer.utils.readers.MatrixLineProcessor;
 
 /**
@@ -209,7 +211,8 @@ public final class FileUtils {
 	 * @param lineProcessor
 	 * @return
 	 * @throws IncorrectNumberOfEntriesException
-	 * @throws IOException 
+	 * @throws DuplicateColumnException if the header names a column twice
+	 * @throws IOException
 	 */
 
 	public static final <T> Map<String, List<T>> readMatrix(File file,
@@ -226,16 +229,20 @@ public final class FileUtils {
 			// initialize the matrix, keeping the columns in header order
 			matrix = new LinkedHashMap<String, List<T>>();
 
-			// get sample names from header
+			// get sample names from header; a repeated name would merge two columns into one
 			for (int i = lineProcessor.getHeaderSampleStartIndex(); i < header.length; i++) {
-				matrix.put(header[i], new LinkedList<T>());
+				if (matrix.putIfAbsent(header[i], new LinkedList<T>()) != null) {
+					throw new DuplicateColumnException(file.getName() + ": column '" + header[i]
+							+ "' appears more than once in the header");
+				}
 			}
 
 			// start at two cos header is at 1
 			int lineNum = 2;
-			while (br.ready()) {
-				// map the line to a list of T
-				List<T> entries = lineProcessor.process(br.readLine(),
+			String text;
+			while ((text = br.readLine()) != null) {
+				// map the line to a list of T, telling the processor where the line comes from
+				List<T> entries = lineProcessor.process(new FileLine(file.getName(), lineNum, text),
 						delimiter);
 				// the number of entries that were mapped
 				int entriesSize = entries.size();
