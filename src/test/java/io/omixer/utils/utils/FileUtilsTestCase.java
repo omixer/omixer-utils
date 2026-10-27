@@ -1,4 +1,4 @@
-package org.omixer.utils.utils;
+package io.omixer.utils.utils;
 
 
 import static org.junit.Assert.assertEquals;
@@ -10,11 +10,10 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.Test;
-import org.omixer.utils.Constants;
-import org.omixer.utils.exceptions.IncorrectNumberOfEntriesException;
-import org.omixer.utils.model.KeyValue;
-import org.omixer.utils.readers.impl.SimpleLineProcessor;
-import org.omixer.utils.utils.FileUtils;
+import io.omixer.utils.Constants;
+import io.omixer.utils.exceptions.IncorrectNumberOfEntriesException;
+import io.omixer.utils.model.KeyValue;
+import io.omixer.utils.readers.impl.SimpleLineProcessor;
 
 public class FileUtilsTestCase {
 

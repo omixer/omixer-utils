@@ -1,4 +1,4 @@
-package org.omixer.utils.utils;
+package io.omixer.utils.utils;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -8,8 +8,6 @@ import java.io.IOException;
 import java.util.LinkedList;
 
 import org.junit.Test;
-import org.omixer.utils.utils.CompressUtils;
-import org.omixer.utils.utils.FileUtils;
 
 public class CompressUtilTestCase {
 

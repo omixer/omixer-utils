@@ -1,4 +1,4 @@
-package org.omixer.utils.utils;
+package io.omixer.utils.utils;
 
 public final class MathUtils {
 	

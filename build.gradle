@@ -3,23 +3,19 @@ plugins {
     id 'java-library'
 	id 'eclipse'
 	id 'maven-publish'
-	id 'com.jfrog.bintray' version '1.8.4'
 }
 
-group = "org.omixer"
-version = '1.0'
+group = "io.omixer"
+version = '1.0.1'
 
 dependencies {
-	compile 'org.codehaus.groovy:groovy:2.5.0'
-	
 	testImplementation 'org.spockframework:spock-core:1.1-groovy-2.4'
 }
 
 // In this section you declare where to find the dependencies of your project
 repositories {
-    // Use jcenter for resolving your dependencies.
     // You can declare any Maven/Ivy/file repository here.
-    jcenter()
+    mavenCentral()
 }
 
 
@@ -27,28 +23,9 @@ publishing {
 	publications {
 		binary(MavenPublication) {
 			from components.java
-			groupId 'org.omixer'
+			groupId 'io.omixer'
 			artifactId 'omixer-utils'
-			version '1.0'
-		}
-	}
-}
-
-Properties properties = new Properties()
-properties.load(project.rootProject.file('local.properties').newDataInputStream())
-
-bintray {
-	user = properties.getProperty("bintray.user")
-	key = properties.getProperty("bintray.apikey")
-	publications = ['binary']
-	pkg {
-		repo = 'omixer'
-		name = 'omixer-utils'
-		userOrg = user
-		licenses = ['GPL-3.0']
-		vcsUrl = 'https://github.com/omixer/omixer-utils.git'
-		version {
-			name = '1.0'
+			version '1.0.1'
 		}
 	}
 }

@@ -1,4 +1,4 @@
-package org.omixer.utils.model;
+package io.omixer.utils.model;
 
 /**
  * 

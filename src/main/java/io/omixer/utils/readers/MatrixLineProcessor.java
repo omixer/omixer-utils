@@ -1,4 +1,4 @@
-package org.omixer.utils.readers;
+package io.omixer.utils.readers;
 
 import java.util.List;
 

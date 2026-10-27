@@ -1,9 +1,8 @@
-package org.omixer.utils.utils;
+package io.omixer.utils.utils;
 
 import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
-import org.omixer.utils.utils.MathUtils;
 
 public class MathUtilsTestCase {
 

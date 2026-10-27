@@ -1,4 +1,4 @@
-package org.omixer.utils;
+package io.omixer.utils;
 
 /**
  * Common constants

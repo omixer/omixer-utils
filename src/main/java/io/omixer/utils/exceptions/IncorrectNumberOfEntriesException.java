@@ -1,4 +1,4 @@
-package org.omixer.utils.exceptions;
+package io.omixer.utils.exceptions;
 
 /**
  * Thrown when the number of entries to add is not equal to that in the

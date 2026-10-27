@@ -1,4 +1,4 @@
-package org.omixer.utils.readers;
+package io.omixer.utils.readers;
 
 
 import static org.junit.Assert.assertEquals;
@@ -7,8 +7,8 @@ import static org.junit.Assert.assertNotNull;
 import java.util.List;
 
 import org.junit.Test;
-import org.omixer.utils.model.KeyValue;
-import org.omixer.utils.readers.impl.SimpleLineProcessor;
+import io.omixer.utils.model.KeyValue;
+import io.omixer.utils.readers.impl.SimpleLineProcessor;
 
 public class SimpleLineProcessorTestCase {
 

@@ -1,4 +1,4 @@
-package org.omixer.utils.utils;
+package io.omixer.utils.utils;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -15,9 +15,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Function;
 
-import org.omixer.utils.Constants;
-import org.omixer.utils.exceptions.IncorrectNumberOfEntriesException;
-import org.omixer.utils.readers.MatrixLineProcessor;
+import io.omixer.utils.Constants;
+import io.omixer.utils.exceptions.IncorrectNumberOfEntriesException;
+import io.omixer.utils.readers.MatrixLineProcessor;
 
 /**
  * Add functionalities not provided by commons-fileUtils
