@@ -1,14 +1,14 @@
 package io.omixer.utils.model;
 
 /**
- * 
- * A class to hold associations between two values
- * 
- * @author <a href="mailto:youssef.darzi@gmail.com">Youssef Darzi</a>
- * 
- * @param <K>
- * @param <V>
+ * A mutable association between a key and a value
+ *
+ * @author <a href="mailto:youssef.darzi@omixer.io">Youssef Darzi</a>
+ * @deprecated use the immutable {@link KeyValuePair}. Here {@link #equals(Object)} is true when the keys <b>or</b>
+ *             the values are equal, which does not match {@link #hashCode()}; and {@link #hashCode()} and
+ *             {@link #toString()} fail on a null key or value
  */
+@Deprecated(since = "1.2.0", forRemoval = true)
 public final class KeyValue<K, V> {
 
 	private static final String KEY_VAL_SEPARATOR = "<=>";

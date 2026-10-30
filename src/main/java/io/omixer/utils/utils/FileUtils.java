@@ -1,6 +1,7 @@
 package io.omixer.utils.utils;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -8,12 +9,17 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.StringJoiner;
 import java.util.function.Function;
 
 import io.omixer.utils.Constants;
@@ -21,493 +27,383 @@ import io.omixer.utils.exceptions.DuplicateColumnException;
 import io.omixer.utils.exceptions.IncorrectNumberOfEntriesException;
 import io.omixer.utils.readers.FileLine;
 import io.omixer.utils.readers.MatrixLineProcessor;
+import io.omixer.utils.readers.MatrixRowHandler;
 
 /**
- * Add functionalities not provided by commons-fileUtils
- * 
- * @author Youssef Darzi
+ * Reading and writing text files: delimited key-value files, delimited rows, matrices with a header line, and objects
+ * written one per line. Readers read every line to the end of the file. Exceptions of the functions and handlers given
+ * to these methods are not caught: they reach the caller unchanged.
  *
+ * @author <a href="mailto:youssef.darzi@omixer.io">Youssef Darzi</a>
  */
 public final class FileUtils {
 
-	private static final String IO_TMP_DIR  = "java.io.tmpdir";
-
-	/**
-	 * Private Constructor to avoid instantiation
-	 */
 	private FileUtils() {
 	}
 
 	/**
-	 * Copies the source file to the destination file
-	 * 
-	 * @param sourceFile
-	 * @param destination
-	 * @throws IOException
+	 * Copies a file
+	 *
+	 * @deprecated use {@link java.nio.file.Files#copy(java.nio.file.Path, java.nio.file.Path, java.nio.file.CopyOption...)}
 	 */
+	@Deprecated(since = "1.2.0", forRemoval = true)
 	public static synchronized void copy(File sourceFile, File destination) throws IOException {
-
 		try (FileInputStream fis = new FileInputStream(sourceFile);
 				FileChannel in = fis.getChannel();
 				FileOutputStream fos = new FileOutputStream(destination);
-				FileChannel out = fos.getChannel();) {
-
+				FileChannel out = fos.getChannel()) {
 			in.transferTo(0, sourceFile.length(), out);
 		}
 	}
 
-	public static final String getIOTmpDir() {
-		return System.getProperty(IO_TMP_DIR);
-	}
-	
 	/**
-	 * @throws IOException 
-	 * 
-	 * Consumes the given number of lines on a {@link LineIterator},
-	 * 
-	 * If the {@link LineIterator} is consumed before the number of desired
-	 * lines is reached the method returns without any warning
-	 * 
-	 * @param li
-	 * @param skip
-	 * @return
-	 * @throws
+	 * @return the system's temporary directory
+	 * @deprecated use {@code System.getProperty("java.io.tmpdir")}, or
+	 *             {@link java.nio.file.Files#createTempFile(String, String, java.nio.file.attribute.FileAttribute...)}
 	 */
-	public static final BufferedReader skip(BufferedReader li, int skip) throws IOException {
-		int skipped = 0;
-		while (li.ready() && skipped < skip) {
-			li.readLine();
-			skipped++;
-		}
-		return li;
+	@Deprecated(since = "1.2.0", forRemoval = true)
+	public static String getIOTmpDir() {
+		return System.getProperty("java.io.tmpdir");
 	}
 
 	/**
-	 * Reads a key value file: duplicated keys are overridden by the last key.
-	 * If a file has multiple columns then the first 2 are returned only
-	 * 
-	 * @param file
-	 * @param delimiter
-	 * @param skip
-	 * @return {@link HashMap}<{@link String}, {@link String}> of key-value
-	 *         pairs
-	 * @throws IOException 
-	 */
-	public static final Map<String, String> readKeyValue(String file,
-			String delimiter, int skip) throws IOException {
-
-		final Map<String, String> keyVals = new HashMap<String, String>();
-				
-		try (BufferedReader lineReader = new BufferedReader(new FileReader(file))) {
-
-			// this is for the user to handle
-			skip(lineReader, skip);
-
-			String[] tokens = null;
-			while (lineReader.ready()) {
-				// as many time as possible and keep trailing characters
-				tokens = lineReader.readLine().split(delimiter, -1);
-				keyVals.put(tokens[0], tokens[1]);
-			}
-		}
-
-		return keyVals;
-	}
-
-	public static final Map<String, Double> readKeyDoubleValue(File file,
-			String delimiter, int skip) throws IOException {
-
-		final Map<String, Double> keyVals = new HashMap<String, Double>();
-		
-		try (BufferedReader lineReader = new BufferedReader(new FileReader(file))) {
-			// this is for the user to handle
-			skip(lineReader, skip);
-
-			String[] tokens = null;
-			while (lineReader.ready()) {
-				// as many time as possible and keep trailing characters
-				tokens = lineReader.readLine().split(delimiter, -1);
-				keyVals.put(tokens[0], Double.valueOf(tokens[1]));
-			}
-		}
-
-		return keyVals;
-	}
-	
-	/**
-	 * Maps a key value file to a {@link Map}
-	 * 
-	 * Read a file as key values Handles multi-values per lines as well as
-	 * multiple occurrences of the same key i.e do not override pre-existing key
-	 * entries with new ones
-	 *  
-	 * @param file
-	 * @param delimiter
-	 * @param skip
-	 * @return
-	 * @throws IOException 
-	 */
-	public static final Map<String, List<String>> readKeyValues(File file,
-			String delimiter, int skip) throws IOException {
-		final Map<String, List<String>> keyValues = new HashMap<String, List<String>>();
-		
-		try (BufferedReader lineReader = new BufferedReader(new FileReader(file))){
-			// skip lines (skip is the number of lines) 
-			skip(lineReader, skip);
-			// a recyclable object for splitting lines into
-			String[] tockens = null;
-			// while there are more lines to read
-			while (lineReader.ready()) {
-				// split 
-				tockens = lineReader.readLine().split(delimiter);
-				// get the values for the current key (tokens[0])
-				List<String> values = keyValues.get(tockens[0]);
-				// if this key is observer for the first time
-				if (values == null) {
-					// create a list to hold the values
-					values = new LinkedList<String>();
-					// register the values with the current key
-					keyValues.put(tockens[0], values);
-				}
-				//populate the values
-				for (int i = 1; i < tockens.length; i++) {
-					values.add(tockens[i]);
-				}
-			}
-		}
-		// return the read keyValues
-		return keyValues;
-	}
-	
-	public static final <T> Map<String, T> readKeyValuesEngin(File file,
-			String delimiter, int skip, Function<Object[], T> mapFiller)
-			throws IOException {
-
-		final Map<String, T> keyValues = new HashMap<String, T>();
-
-		try (BufferedReader lineReader = new BufferedReader(new FileReader(file))) {
-
-			skip(lineReader, skip);
-			String[] tockens = null;
-
-			while (lineReader.ready()) {
-				tockens = lineReader.readLine().split(delimiter);
-				mapFiller.apply(new Object[] { keyValues, tockens });
-			}
-		}
-
-		return keyValues;
-	}
-
-	/**
-	 * 
-	 * Maps the headers of a matrix to the columns
+	 * Skips lines of a reader: the given number, or fewer when the reader ends first
 	 *
-	 * The returned map iterates over the columns in header order
-	 *
-	 * @param <T>
-	 * @param file
-	 * @param delimiter
-	 * @param lineProcessor
-	 * @return
-	 * @throws IncorrectNumberOfEntriesException
-	 * @throws DuplicateColumnException if the header names a column twice
+	 * @param reader
+	 * @param lines the number of lines to skip
+	 * @return the reader
 	 * @throws IOException
 	 */
+	public static BufferedReader skip(BufferedReader reader, int lines) throws IOException {
+		int skipped = 0;
+		while (skipped < lines && reader.readLine() != null) {
+			skipped++;
+		}
+		return reader;
+	}
 
-	public static final <T> Map<String, List<T>> readMatrix(File file,
-			final String delimiter, MatrixLineProcessor<T> lineProcessor)
-			throws IncorrectNumberOfEntriesException, IOException {
-
-		// will never be null since the try condition will initialize it or
-		// throw an excption
-		final Map<String, List<T>> matrix;
-
-		try (BufferedReader br = new BufferedReader(new FileReader(file))){
-			// keep the header: [0] = mass , [rest] = sample names
-			final String[] header = br.readLine().split(delimiter);
-			// initialize the matrix, keeping the columns in header order
-			matrix = new LinkedHashMap<String, List<T>>();
-
-			// get sample names from header; a repeated name would merge two columns into one
-			for (int i = lineProcessor.getHeaderSampleStartIndex(); i < header.length; i++) {
-				if (matrix.putIfAbsent(header[i], new LinkedList<T>()) != null) {
-					throw new DuplicateColumnException(file.getName() + ": column '" + header[i]
-							+ "' appears more than once in the header");
-				}
-			}
-
-			// start at two cos header is at 1
-			int lineNum = 2;
-			String text;
-			while ((text = br.readLine()) != null) {
-				// map the line to a list of T, telling the processor where the line comes from
-				List<T> entries = lineProcessor.process(new FileLine(file.getName(), lineNum, text),
-						delimiter);
-				// the number of entries that were mapped
-				int entriesSize = entries.size();
-
-				// ensure correct number of lines
-				if (entriesSize + lineProcessor.getHeaderSampleStartIndex() != header.length) {
-					throw new IncorrectNumberOfEntriesException("Line "
-							+ lineNum + " have " + entriesSize
-							+ " entries instead of " + header.length);
-				}
-				// increment line number
-				lineNum++;
-				// populate matrix
-				for (int i = 0; i < entriesSize; i++) {
-					// sync the fetch from header by getting : i +
-					// lineProcessor.getHeaderSampleStartIndex()
-					matrix.get(
-							header[i
-									+ lineProcessor.getHeaderSampleStartIndex()])
-							.add(entries.get(i));
-				}
+	/**
+	 * Reads the first two fields of every line as a key and its value; a key repeated on a later line takes the later
+	 * value. Trailing empty fields are kept, so "key&lt;delimiter&gt;" gives an empty value.
+	 *
+	 * @param file
+	 * @param delimiter a regular expression, as for {@link String#split(String)}
+	 * @param skip      the number of lines to skip first, e.g. 1 for a header
+	 * @return the keys and their values
+	 * @throws IOException
+	 */
+	public static Map<String, String> readKeyValue(String file, String delimiter, int skip) throws IOException {
+		Map<String, String> keyValues = new HashMap<>();
+		try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+			skip(reader, skip);
+			String line;
+			while ((line = reader.readLine()) != null) {
+				String[] fields = line.split(delimiter, -1);
+				keyValues.put(fields[0], fields[1]);
 			}
 		}
+		return keyValues;
+	}
 
+	/**
+	 * As {@link #readKeyValue(String, String, int)}, with the values read as numbers
+	 *
+	 * @throws NumberFormatException if a value is not a number
+	 */
+	public static Map<String, Double> readKeyDoubleValue(File file, String delimiter, int skip) throws IOException {
+		Map<String, Double> keyValues = new HashMap<>();
+		try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+			skip(reader, skip);
+			String line;
+			while ((line = reader.readLine()) != null) {
+				String[] fields = line.split(delimiter, -1);
+				keyValues.put(fields[0], Double.valueOf(fields[1]));
+			}
+		}
+		return keyValues;
+	}
+
+	/**
+	 * Reads the first field of every line as a key and the other fields as its values. The values of a key repeated on
+	 * several lines are all kept, in file order.
+	 *
+	 * @param file
+	 * @param delimiter a regular expression, as for {@link String#split(String)}
+	 * @param skip      the number of lines to skip first, e.g. 1 for a header
+	 * @return the keys and their values
+	 * @throws IOException
+	 */
+	public static Map<String, List<String>> readKeyValues(File file, String delimiter, int skip) throws IOException {
+		Map<String, List<String>> keyValues = new HashMap<>();
+		try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+			skip(reader, skip);
+			String line;
+			while ((line = reader.readLine()) != null) {
+				String[] fields = line.split(delimiter);
+				keyValues.computeIfAbsent(fields[0], key -> new ArrayList<>())
+						.addAll(Arrays.asList(fields).subList(1, fields.length));
+			}
+		}
+		return keyValues;
+	}
+
+	/**
+	 * Gives every line, split on the delimiter, to a function that fills the map
+	 *
+	 * @param mapFiller called with {map, fields} for every line
+	 * @return the map
+	 * @deprecated read the lines with {@link #readCSV(File, int, Function)} and fill the map from the result
+	 */
+	@Deprecated(since = "1.2.0", forRemoval = true)
+	public static <T> Map<String, T> readKeyValuesEngin(File file, String delimiter, int skip,
+			Function<Object[], T> mapFiller) throws IOException {
+		Map<String, T> keyValues = new HashMap<>();
+		try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+			skip(reader, skip);
+			String line;
+			while ((line = reader.readLine()) != null) {
+				mapFiller.apply(new Object[] { keyValues, line.split(delimiter) });
+			}
+		}
+		return keyValues;
+	}
+
+	/**
+	 * Reads a matrix into columns: every row is mapped to one entry per data column by a line processor.
+	 *
+	 * @param file
+	 * @param delimiter     a regular expression, as for {@link String#split(String)}
+	 * @param lineProcessor maps a row to its entries, one per data column
+	 * @return the entries of every data column, iterating over the columns in header order
+	 * @throws IncorrectNumberOfEntriesException if a row has another number of entries than data columns
+	 * @throws DuplicateColumnException          if the header names a data column twice
+	 * @throws IOException
+	 * @see #readMatrixRows(File, String, int, MatrixRowHandler) to read a matrix without collecting it
+	 */
+	public static <T> Map<String, List<T>> readMatrix(File file, String delimiter, MatrixLineProcessor<T> lineProcessor)
+			throws IncorrectNumberOfEntriesException, IOException {
+
+		Map<String, List<T>> matrix = new LinkedHashMap<>();
+		readMatrixRows(file, delimiter, lineProcessor.getHeaderSampleStartIndex(), new MatrixRowHandler() {
+
+			// the lists of the matrix, in header order
+			private final List<List<T>> columns = new ArrayList<>();
+
+			@Override
+			public void columns(List<String> names) {
+				for (String name : names) {
+					List<T> column = new ArrayList<>();
+					matrix.put(name, column);
+					columns.add(column);
+				}
+			}
+
+			@Override
+			public int row(FileLine line, String[] fields) {
+				List<T> entries = lineProcessor.process(line, delimiter);
+				// a row of the wrong size is rejected by readMatrixRows, so it is not added
+				if (entries.size() == columns.size()) {
+					for (int i = 0; i < entries.size(); i++) {
+						columns.get(i).add(entries.get(i));
+					}
+				}
+				return entries.size();
+			}
+		});
 		return matrix;
 	}
 
-	@SuppressWarnings("unchecked")
-	public static final <T> List<T> readCSV(File file, final String delimiter,
-			int skip)
-			throws IOException {
+	/**
+	 * Reads a matrix one row at a time and hands each row to a handler, without collecting anything: the first line
+	 * is the header, every other line a row.
+	 *
+	 * @param file
+	 * @param delimiter              the column delimiter, a regular expression as for {@link String#split(String)}
+	 * @param headerSampleStartIndex the (zero-based) index of the first data column
+	 * @param handler                gets the data column names, then every row
+	 * @throws DuplicateColumnException          if the header names a data column twice
+	 * @throws IncorrectNumberOfEntriesException if the handler finds a number of entries in a row other than the
+	 *                                           number of data columns
+	 * @throws IOException                       if the file cannot be read, or is empty (no header line)
+	 */
+	public static void readMatrixRows(File file, String delimiter, int headerSampleStartIndex,
+			MatrixRowHandler handler) throws IncorrectNumberOfEntriesException, IOException {
 
-		return readCSV(file, skip, (Function<String, T>) new Function<String, String[]>() {
-			public String[] apply(String input) {
-				// in case delimiter is null a null pointer exception is
-				// thrown
-				return input.split(delimiter);
+		try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+			String headerLine = reader.readLine();
+			if (headerLine == null) {
+				throw new IOException(file.getName() + " is empty: a matrix starts with a header line");
 			}
+			String[] header = headerLine.split(delimiter);
+			// the data column names, in header order; a repeated name would merge two columns into one
+			List<String> columns = new ArrayList<>();
+			Set<String> names = new HashSet<>();
+			for (int i = headerSampleStartIndex; i < header.length; i++) {
+				if (!names.add(header[i])) {
+					throw new DuplicateColumnException(file.getName() + ": column '" + header[i]
+							+ "' appears more than once in the header");
+				}
+				columns.add(header[i]);
+			}
+			handler.columns(Collections.unmodifiableList(columns));
+
+			// the header is line 1
+			int lineNumber = 2;
+			String text;
+			while ((text = reader.readLine()) != null) {
+				int entries = handler.row(new FileLine(file.getName(), lineNumber, text), text.split(delimiter));
+				if (entries + headerSampleStartIndex != header.length) {
+					throw new IncorrectNumberOfEntriesException("Line " + lineNumber + " have " + entries
+							+ " entries instead of " + header.length);
+				}
+				lineNumber++;
+			}
+		}
+	}
+
+	/**
+	 * Reads every line, split on the delimiter, after skipping the first lines
+	 *
+	 * @param delimiter a regular expression, as for {@link String#split(String)}
+	 * @return the fields of every line, as {@code String[]}
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T> List<T> readCSV(File file, String delimiter, int skip) throws IOException {
+		return readCSV(file, skip, line -> (T) line.split(delimiter));
+	}
+
+	/**
+	 * Maps every line, after skipping the first lines
+	 *
+	 * @param skip      the number of lines to skip first, e.g. 1 for a header
+	 * @param rowMapper maps a line to an object
+	 * @return the mapped lines, in file order
+	 */
+	public static <T> List<T> readCSV(File file, int skip, Function<String, T> rowMapper) throws IOException {
+		List<T> rows = new ArrayList<>();
+		try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+			skip(reader, skip);
+			String line;
+			while ((line = reader.readLine()) != null) {
+				rows.add(rowMapper.apply(line));
+			}
+		}
+		return rows;
+	}
+
+	/**
+	 * Maps every line with the row mapper, or splits it on the delimiter when there is none
+	 *
+	 * @deprecated use {@link #readCSV(File, String, int)} or {@link #readCSV(File, int, Function)}
+	 */
+	@Deprecated(since = "1.2.0", forRemoval = true)
+	public static <T> List<T> readCSV(File file, String delimiter, int skip, Function<String, T> rowMapper)
+			throws IOException {
+		return rowMapper == null ? readCSV(file, delimiter, skip) : readCSV(file, skip, rowMapper);
+	}
+
+	/**
+	 * @return the lines of a file joined without line separators
+	 * @deprecated use {@link java.nio.file.Files#readString(java.nio.file.Path)}, which keeps the line separators
+	 */
+	@Deprecated(since = "1.2.0", forRemoval = true)
+	public static String readContentAsString(File file) throws IOException {
+		StringBuilder content = new StringBuilder();
+		try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				content.append(line);
+			}
+		}
+		return content.toString();
+	}
+
+	/**
+	 * @return the first line of a file, or null if it is empty
+	 * @deprecated read the first line with {@link java.nio.file.Files#newBufferedReader(java.nio.file.Path)}
+	 */
+	@Deprecated(since = "1.2.0", forRemoval = true)
+	public static String getFileHeader(String fileName) throws IOException {
+		try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
+			return reader.readLine();
+		}
+	}
+
+	/**
+	 * Writes one line per key and value: key&lt;delimiter&gt;value
+	 *
+	 * @param input   the keys and their values
+	 * @param outfile
+	 * @param delimiter
+	 * @throws IOException
+	 */
+	public static <K, V> void writeKeyValues(Map<K, Iterable<V>> input, String outfile, String delimiter)
+			throws IOException {
+		writeObjects(outfile, null, input.entrySet(), entry -> {
+			StringJoiner lines = new StringJoiner(Constants.NEW_LINE);
+			for (V value : entry.getValue()) {
+				lines.add(entry.getKey() + delimiter + value);
+			}
+			return lines.toString();
 		});
 	}
-	
-	public static final <T> List<T> readCSV(File file,
-			int skip, Function<String, T> rowMapper)
-			throws IOException {
 
-		// init the list
-		final List<T> mappedRows = new LinkedList<T>();		
-		try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-
-			skip(br, skip);
-			// process each row
-			while (br.ready()) {
-				mappedRows.add(rowMapper.apply(br.readLine()));
-			}
-		}
-		return mappedRows;
-	}
-	
 	/**
-	 * 
-	 * Given a tab delimited file map each of its rows to an object
-	 * 
-	 * @return
-	 * @throws IOException 
-	 * @Deprecated Use the simplified versions instead: with either a delimiter or a rowmapper
-	 */
-	@SuppressWarnings("unchecked")
-	public static final <T> List<T> readCSV(File file, final String delimiter,
-			int skip, Function<String, T> rowMapper)
-			throws IOException {
-
-		// init the list
-		final List<T> mappedRows = new LinkedList<T>();
-
-		Function<String, T> rowMapperIntern = rowMapper; 
-		
-		try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-			FileUtils.skip(br, skip);
-			// if the provided rowMapper is null, create a default which return
-			// a String[]
-			if (rowMapperIntern == null) {
-				rowMapperIntern = (Function<String, T>) new Function<String, String[]>() {
-					public String[] apply(String input) {
-						// in case delimiter is null a null pointer exception is
-						// thrown
-						return input.split(delimiter);
-					}
-				};
-			}
-			// process each row
-			while (br.ready()) {
-				mappedRows.add(rowMapperIntern.apply(br.readLine()));
-			}
-		} 
-
-		return mappedRows;
-	}
-	
-	/**
-	 * 
+	 * Writes a header line, then one line per object. The file is not deleted when writing fails.
+	 *
 	 * @param file
-	 * @return a String representation of the content of a file 
-	 * @throws IOException
-	 */
-	public static final String readContentAsString(File file) throws IOException {
-
-		try(BufferedReader br = new BufferedReader(new FileReader(file))) {
-			String content = Constants.EMPTY_STRING;
-			while (br.ready()) {
-				content += br.readLine();
-			}
-			return content;
-		}
-	}
-	
-	/**
-	 * Return the first line in a file
-	 * 
-	 * @param fileName
-	 * @return
-	 * @throws IOException
-	 */
-	public static final String getFileHeader(String fileName)
-			throws IOException {
-
-		String header = null;
-		try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
-			// if exception is thrown then the file is not correct and should
-			// not be passed to this function
-			header = br.readLine();
-		}
-
-		return header;
-	}
-
-	/**
-	 * Given a Map<K, List<V>, save it's {@link Entry}s as key value each time
-	 * on a new line
-	 * 
-	 * @param <K>
-	 * @param <V>
-	 * @param input
-	 * @throws IOException
-	 */
-	public static final <K, V> void writeKeyValues(Map<K, Iterable<V>> input,
-			String outfile, final String delimiter) throws IOException {
-
-		// the platform's line separator
-		final String lineSeparator = System.getProperty("line.separator");
-
-		writeObjects(outfile, null, input.entrySet(),
-				new Function<Entry<K, Iterable<V>>, String>() {
-					public String apply(Entry<K, Iterable<V>> entry) {
-						StringBuilder s = new StringBuilder();
-
-						for (V value : entry.getValue()) {
-							s.append(entry.getKey()).append(delimiter)
-									.append(value).append(lineSeparator);
-						}
-						// replace the trailing characters by an empty space 
-						return s.toString().replaceFirst(lineSeparator + "$",
-								Constants.EMPTY_STRING);
-					}
-				});
-
-	}
-
-	/**
-	 * 
-	 * File are note deleted in case of {@link IOException}s. This is left to
-	 * the programmer to handle.
-	 * 
-	 * New lines are handled by this method
-	 * 
-	 * @param file
-	 * @param header
-	 * 			a header {@link String} or <code>null</code>. An empty
-	 *          {@link String} is considered as a valid header.
+	 * @param header    a header line, or null for none; an empty string is a header (an empty line)
 	 * @param objects
-	 * @param formater
-	 *            an implementation that return a String format of the object
-	 *            without a new line character
+	 * @param formatter formats an object as one line, without a line separator; null for {@link Object#toString()}
 	 * @throws IOException
 	 */
-	public static final synchronized <O> void writeObjects(File file,
-			String header, Iterable<O> objects, Function<O, String> formater)
-			throws IOException {
-		// the platform's line separator
-		final String lineSeparator = System.getProperty("line.separator");
-		// initialize the format function with the one given in params
-		Function<O, String> format = formater;
-		// if nothing is given make sure to provide a default
-		if (formater == null) {
-			// assign a plain toString format
-			format = new Function<O, String>() {
-				public String apply(O input) {
-					return input.toString();
-				}
-			};
-		}
-
-		try (FileWriter fileWriter = new FileWriter(file);) {			
-			
-			// is there a header to print?
+	public static synchronized <O> void writeObjects(File file, String header, Iterable<O> objects,
+			Function<O, String> formatter) throws IOException {
+		Function<O, String> format = formatter != null ? formatter : Object::toString;
+		try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
 			if (header != null) {
-				fileWriter.write(header);
-				fileWriter.write(lineSeparator);
+				writer.write(header);
+				writer.write(Constants.NEW_LINE);
 			}
-			// feature formatter provided then use it to format each object
-			for (O o : objects) {
-				fileWriter.write(format.apply(o));
-				fileWriter.write(lineSeparator);
+			for (O object : objects) {
+				writer.write(format.apply(object));
+				writer.write(Constants.NEW_LINE);
 			}
-
 		}
 	}
-	
+
 	/**
-	 * 
-	 * 
-	 * File are note deleted in case of {@link IOException}s. This is left to
-	 * the programmer to handle.
-	 * 
-	 * New lines are handled by this method
-	 * 
-	 * 
-	 * @param <O>
-	 * @param file
-	 * @param header
-	 *            a header {@link String} or <code>null</code>. An empty
-	 *            {@link String} is considered as a valid header.
-	 *            
-	 * @param objects
-	 * @param formater
-	 *            an implementation that return a String format of the object
-	 *            without a new line character
-	 * @throws IOException
+	 * As {@link #writeObjects(File, String, Iterable, Function)}, for a file name
 	 */
-	public static final synchronized <O> void writeObjects(String file,
-			String header, Iterable<O> objects, Function<O, String> formater)
-			throws IOException {
-		writeObjects(new File(file), header, objects, formater);
+	public static synchronized <O> void writeObjects(String file, String header, Iterable<O> objects,
+			Function<O, String> formatter) throws IOException {
+		writeObjects(new File(file), header, objects, formatter);
 	}
 
 	/**
-	 * Deletes the file and handle {@link NullPointerException}s
-	 * 
-	 * @param file
+	 * Deletes a file, if there is one
+	 *
+	 * @deprecated use {@link java.nio.file.Files#deleteIfExists(java.nio.file.Path)}
 	 */
-	public static final void deleteQuietly(File file) {
+	@Deprecated(since = "1.2.0", forRemoval = true)
+	public static void deleteQuietly(File file) {
 		if (file != null) {
 			file.delete();
 		}
-
 	}
 
-	public static <K, V> void writeKeyValue(Map<K, V> map, String header,
-			File output, final String delimiter) throws IOException {
+	/**
+	 * Writes a header line, then one line per entry: key&lt;delimiter&gt;value
+	 *
+	 * @param map
+	 * @param header a header line, or null for none
+	 * @param output
+	 * @param delimiter
+	 * @throws IOException
+	 */
+	public static <K, V> void writeKeyValue(Map<K, V> map, String header, File output, String delimiter)
+			throws IOException {
 		writeObjects(output, header, map.entrySet(),
-				new Function<Entry<K, V>, String>() {
-
-					public String apply(Entry<K, V> input) {
-						return input.getKey().toString() + delimiter
-								+ input.getValue().toString();
-					}
-				});		
+				(Entry<K, V> entry) -> entry.getKey().toString() + delimiter + entry.getValue().toString());
 	}
 }

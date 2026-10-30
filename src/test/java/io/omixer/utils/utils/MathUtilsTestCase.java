@@ -1,8 +1,8 @@
 package io.omixer.utils.utils;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class MathUtilsTestCase {
 
@@ -28,5 +28,10 @@ public class MathUtilsTestCase {
 		assertEquals(6, accumulator[2], delta);
 		assertEquals(10, accumulator[3], delta);
 		assertEquals(15, accumulator[4], delta);
+	}
+
+	@Test
+	public void accumulateGivesNothingForAnEmptyArray() {
+		assertEquals(0, MathUtils.accumulate(new Integer[0]).length);
 	}
 }

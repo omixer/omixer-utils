@@ -1,68 +1,30 @@
 package io.omixer.utils.utils;
 
+/**
+ * Arithmetic helpers.
+ *
+ * @author <a href="mailto:youssef.darzi@omixer.io">Youssef Darzi</a>
+ */
 public final class MathUtils {
-	
+
 	/**
-	 * 
-	 * 
-	 * <div>
-	 * <p>
-	 * Strategy to highlight fold change. <br />
-	 * Note that all values are assumed to be positive.
-	 * </p>
-	 * <p>
-	 * This table summarize the behavior of his method.
-	 * </p>
-	 * </div> <div>
+	 * A fold change that shows the direction of the change: left ÷ right when left is the larger, −(right ÷ left)
+	 * when right is the larger, and 0 when they are equal. A 0 value counts as 1 in the ratio. Values are assumed to be
+	 * positive.
+	 *
 	 * <table border="1">
-	 * <tr>
-	 * <td>Left</td>
-	 * <td>Right</td>
-	 * <td>Ratio L/R</td>
-	 * <td>Returned value</td>
-	 * <td>Change</td>
-	 * </tr>
-	 * <tr>
-	 * <td>1</td>
-	 * <td>2</td>
-	 * <td>1/2</td>
-	 * <td>-2</td>
-	 * <td>Down</td>
-	 * </tr>
-	 * <tr>
-	 * <td>2</td>
-	 * <td>1</td>
-	 * <td>2</td>
-	 * <td>2</td>
-	 * <td>Up</td>
-	 * </tr>
-	 * <tr>
-	 * <td>1</td>
-	 * <td>0</td>
-	 * <td>1/0</td>
-	 * <td>1</td>
-	 * <td>Up</td>
-	 * </tr>
-	 * <tr>
-	 * <td>0</td>
-	 * <td>1</td>
-	 * <td>0/1</td>
-	 * <td>-1</td>
-	 * <td>Down</td>
-	 * </tr>
-	 * <tr>
-	 * <td>1</td>
-	 * <td>1</td>
-	 * <td>1/1</td>
-	 * <td>0</td>
-	 * <td>Null</td>
-	 * </tr>
+	 * <caption>Examples</caption>
+	 * <tr><th>Left</th><th>Right</th><th>Returned value</th><th>Change</th></tr>
+	 * <tr><td>1</td><td>2</td><td>-2</td><td>down</td></tr>
+	 * <tr><td>2</td><td>1</td><td>2</td><td>up</td></tr>
+	 * <tr><td>1</td><td>0</td><td>1</td><td>up</td></tr>
+	 * <tr><td>0</td><td>1</td><td>-1</td><td>down</td></tr>
+	 * <tr><td>1</td><td>1</td><td>0</td><td>none</td></tr>
 	 * </table>
-	 * </div>
-	 * 
-	 * @param lhsValues
-	 * @param rhsValues
-	 * @return
+	 *
+	 * @param lhsValue the left value
+	 * @param rhsValue the right value
+	 * @return the signed fold change
 	 */
 	public static final double computeRatio(Double lhsValue, Double rhsValue) {
 
@@ -97,18 +59,15 @@ public final class MathUtils {
 
 	
 	/**
-	 * Create an array of cumulative sums
-	 * 
-	 * @param array
-	 * @return returns the cumulative sum array
+	 * @param array numbers, possibly none
+	 * @return the cumulative sums: element i is the sum of the numbers 0 to i, added in order
 	 */
 	public static <T extends Number> double[] accumulate(T[] array) {
-		// Initialize the accumulator
-		double[] accumulator = new double[array.length];  
-		// accumulate
-		accumulator[0] = array[0].doubleValue();
-		for (int i = 1; i < array.length; i++) {
-			accumulator[i] = accumulator[i - 1] + array[i].doubleValue();
+		double[] accumulator = new double[array.length];
+		double sum = 0;
+		for (int i = 0; i < array.length; i++) {
+			sum += array[i].doubleValue();
+			accumulator[i] = sum;
 		}
 		return accumulator;
 	}	

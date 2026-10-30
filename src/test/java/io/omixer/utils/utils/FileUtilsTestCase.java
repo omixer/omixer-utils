@@ -1,10 +1,10 @@
 package io.omixer.utils.utils;
 
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,15 +13,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import io.omixer.utils.Constants;
 import io.omixer.utils.exceptions.DuplicateColumnException;
 import io.omixer.utils.exceptions.IncorrectNumberOfEntriesException;
-import io.omixer.utils.model.KeyValue;
+import io.omixer.utils.model.KeyValuePair;
 import io.omixer.utils.readers.FileLine;
 import io.omixer.utils.readers.MatrixLineProcessor;
-import io.omixer.utils.readers.impl.SimpleLineProcessor;
+import io.omixer.utils.readers.MatrixRowHandler;
+import io.omixer.utils.readers.impl.KeyValueLineProcessor;
 
 public class FileUtilsTestCase {
 
@@ -75,19 +77,17 @@ public class FileUtilsTestCase {
 			}
 		};
 
-		try {
-			FileUtils.readMatrix(matrixFile, Constants.TAB, processor);
-			fail("the processor's exception must reach the caller");
-		} catch (IllegalStateException e) {
-			assertSame(thrown, e);
-		}
+		IllegalStateException e = assertThrows(IllegalStateException.class,
+				() -> FileUtils.readMatrix(matrixFile, Constants.TAB, processor),
+				"the processor's exception must reach the caller");
+		assertSame(thrown, e);
 	}
 
 	@Test
 	public void readMatrixKeepsTheHeaderOrderOfColumns() throws IncorrectNumberOfEntriesException, IOException {
 
-		Map<String, List<KeyValue<String, Double>>> matrix = FileUtils.readMatrix(matrixFile, Constants.TAB,
-				new SimpleLineProcessor<String, Double>(String.class, Double.class));
+		Map<String, List<KeyValuePair<String, Double>>> matrix = FileUtils.readMatrix(matrixFile, Constants.TAB,
+				new KeyValueLineProcessor<String, Double>(Function.identity(), Double::valueOf));
 
 		assertEquals(Arrays.asList("1a", "3a", "2a", "2b", "3b", "4a", "4b", "1b"), new ArrayList<>(matrix.keySet()));
 	}
@@ -99,14 +99,12 @@ public class FileUtilsTestCase {
 		duplicates.deleteOnExit();
 		Files.write(duplicates.toPath(), Arrays.asList("rows\tS1\tS2\tS1", "k1\t1\t2\t3"));
 
-		try {
-			FileUtils.readMatrix(duplicates, Constants.TAB,
-					new SimpleLineProcessor<String, Double>(String.class, Double.class));
-			fail("a duplicate column name must not be merged silently");
-		} catch (DuplicateColumnException e) {
-			assertTrue(e.getMessage().contains("'S1'"));
-			assertTrue(e.getMessage().contains(duplicates.getName()));
-		}
+		DuplicateColumnException e = assertThrows(DuplicateColumnException.class,
+				() -> FileUtils.readMatrix(duplicates, Constants.TAB,
+				new KeyValueLineProcessor<String, Double>(Function.identity(), Double::valueOf)),
+				"a duplicate column name must not be merged silently");
+		assertTrue(e.getMessage().contains("'S1'"));
+		assertTrue(e.getMessage().contains(duplicates.getName()));
 	}
 
 	@Test
@@ -115,7 +113,7 @@ public class FileUtilsTestCase {
 		int expectedNumberOfColumns = 8;
 		int expectedNumberOfEntries = 3;
 		
-		Map<String, List<KeyValue<String, Double>>> matrix = FileUtils.readMatrix(matrixFile, Constants.TAB, new SimpleLineProcessor<String, Double>(String.class, Double.class));
+		Map<String, List<KeyValuePair<String, Double>>> matrix = FileUtils.readMatrix(matrixFile, Constants.TAB, new KeyValueLineProcessor<String, Double>(Function.identity(), Double::valueOf));
 		// right number of columns?
 		assertEquals(expectedNumberOfColumns, matrix.keySet().size());
 		
@@ -127,5 +125,101 @@ public class FileUtilsTestCase {
 			assertEquals(expectedNumberOfEntries, matrix.get(colnames[i]).size());
 		}
 	}
-	
+
+	/** Records the columns and rows it gets; every row has the entries of its data columns */
+	private static class RecordingHandler implements MatrixRowHandler {
+
+		final List<String> events = new ArrayList<>();
+
+		@Override
+		public void columns(List<String> columns) {
+			events.add("columns " + columns);
+		}
+
+		@Override
+		public int row(FileLine line, String[] fields) {
+			events.add(line.file() + ":" + line.number() + " " + Arrays.asList(fields));
+			return fields.length - 1;
+		}
+	}
+
+	private static File matrix(String... lines) throws IOException {
+		File file = File.createTempFile("matrix", ".tsv");
+		file.deleteOnExit();
+		Files.write(file.toPath(), Arrays.asList(lines));
+		return file;
+	}
+
+	@Test
+	public void readMatrixRowsGivesTheColumnsInHeaderOrderThenEveryRowWithItsFileAndLine()
+			throws IncorrectNumberOfEntriesException, IOException {
+
+		File file = matrix("rows\tS2\tS1", "k1\t1\t2", "k2\t3\t4");
+		RecordingHandler handler = new RecordingHandler();
+
+		FileUtils.readMatrixRows(file, Constants.TAB, 1, handler);
+
+		assertEquals(Arrays.asList("columns [S2, S1]", file.getName() + ":2 [k1, 1, 2]", file.getName() + ":3 [k2, 3, 4]"),
+				handler.events);
+	}
+
+	@Test
+	public void readMatrixRowsRejectsADuplicateColumnName() throws IncorrectNumberOfEntriesException, IOException {
+
+		File file = matrix("rows\tS1\tS2\tS1", "k1\t1\t2\t3");
+		DuplicateColumnException e = assertThrows(DuplicateColumnException.class,
+				() -> FileUtils.readMatrixRows(file, Constants.TAB, 1, new RecordingHandler()),
+				"a duplicate column name must be rejected");
+		assertEquals(file.getName() + ": column 'S1' appears more than once in the header", e.getMessage());
+	}
+
+	@Test
+	public void readMatrixRowsRejectsARowWithAnotherNumberOfEntriesThanColumns() throws IOException {
+
+		File file = matrix("rows\tS1\tS2", "k1\t1\t2", "k2\t3");
+		IncorrectNumberOfEntriesException e = assertThrows(IncorrectNumberOfEntriesException.class,
+				() -> FileUtils.readMatrixRows(file, Constants.TAB, 1, new RecordingHandler()),
+				"a row with too few entries must be rejected");
+		assertEquals("Line 3 have 1 entries instead of 3", e.getMessage());
+	}
+
+	@Test
+	public void readMatrixRowsLetsAnExceptionOfTheHandlerReachTheCallerUnchanged()
+			throws IncorrectNumberOfEntriesException, IOException {
+
+		IllegalStateException thrown = new IllegalStateException("from the handler");
+		MatrixRowHandler handler = new MatrixRowHandler() {
+			@Override
+			public void columns(List<String> columns) {
+			}
+
+			@Override
+			public int row(FileLine line, String[] fields) {
+				throw thrown;
+			}
+		};
+		IllegalStateException e = assertThrows(IllegalStateException.class,
+				() -> FileUtils.readMatrixRows(matrix("rows\tS1", "k1\t1"), Constants.TAB, 1, handler),
+				"the handler's exception must reach the caller");
+		assertSame(thrown, e);
+	}
+
+	@Test
+	public void readMatrixRejectsARowWithAnotherNumberOfEntriesThanColumns() throws IOException {
+
+		File file = matrix("rows\tS1\tS2", "k1\t1\t2", "k2\t3");
+		IncorrectNumberOfEntriesException e = assertThrows(IncorrectNumberOfEntriesException.class,
+				() -> FileUtils.readMatrix(file, Constants.TAB, new KeyValueLineProcessor<String, Double>(Function.identity(), Double::valueOf)),
+				"a row with too few entries must be rejected");
+		assertEquals("Line 3 have 1 entries instead of 3", e.getMessage());
+	}
+
+	@Test
+	public void readMatrixRowsRejectsAnEmptyFile() throws IOException {
+
+		File file = matrix();
+		IOException e = assertThrows(IOException.class,
+				() -> FileUtils.readMatrixRows(file, Constants.TAB, 1, new RecordingHandler()));
+		assertEquals(file.getName() + " is empty: a matrix starts with a header line", e.getMessage());
+	}
 }
