@@ -1,10 +1,11 @@
 plugins {
 	id 'java-library'
 	id 'eclipse'
-	id 'maven-publish'
+	id 'com.vanniktech.maven.publish' version '0.37.0'
 }
 
-group = "io.omixer"
+// Maven Central namespace of the omixer GitHub account; the Java packages stay io.omixer.utils
+group = 'io.github.omixer'
 version = '1.2.0'
 
 // Minimum Java version for users of the library
@@ -33,11 +34,37 @@ javadoc {
 	options.addBooleanOption('Xdoclint:all,-missing', true)
 }
 
-publishing {
-	publications {
-		binary(MavenPublication) {
-			from components.java
-			artifactId = 'omixer-utils'
+// Maven Central (Central Portal): sources and javadoc jars, signatures, POM. Credentials and signing key come from
+// ~/.gradle/gradle.properties or ORG_GRADLE_PROJECT_* variables, never from this repository
+mavenPublishing {
+	publishToMavenCentral()
+	// Central rejects unsigned uploads; a local install (publishToMavenLocal) needs no key
+	if (providers.gradleProperty('signingInMemoryKey').isPresent()) {
+		signAllPublications()
+	}
+	coordinates(group, 'omixer-utils', version)
+	pom {
+		name = 'omixer-utils'
+		description = 'Small, generic Java helpers for reading and writing text files, used by Omixer-RPM.'
+		inceptionYear = '2018'
+		url = 'https://github.com/omixer/omixer-utils'
+		licenses {
+			license {
+				name = 'MIT License'
+				url = 'https://opensource.org/licenses/MIT'
+			}
+		}
+		developers {
+			developer {
+				id = 'omixer'
+				name = 'Youssef Darzi'
+				url = 'https://github.com/omixer'
+			}
+		}
+		scm {
+			url = 'https://github.com/omixer/omixer-utils'
+			connection = 'scm:git:https://github.com/omixer/omixer-utils.git'
+			developerConnection = 'scm:git:ssh://git@github.com/omixer/omixer-utils.git'
 		}
 	}
 }

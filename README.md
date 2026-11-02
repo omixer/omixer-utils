@@ -15,8 +15,15 @@ Java 17 or newer; Gradle 9.
 
 ```
 gradle build                 # compile and test
-gradle publishToMavenLocal   # install io.omixer:omixer-utils into ~/.m2, where Omixer-RPM resolves it
+gradle publishToMavenLocal   # install io.github.omixer:omixer-utils into ~/.m2 (unsigned)
 ```
+
+Released versions are on Maven Central as `io.github.omixer:omixer-utils` (the Java packages are `io.omixer.utils`).
+To release, set `version` in `build.gradle`, commit, then push a matching tag: `git tag v1.2.0 && git push origin v1.2.0`.
+The `Publish to Maven Central` workflow (`.github/workflows/publish.yml`) checks that the tag matches the version,
+builds, tests, signs and publishes. It needs the repository secrets `MAVEN_CENTRAL_USERNAME` and
+`MAVEN_CENTRAL_PASSWORD` (a Central Portal user token), `SIGNING_KEY` (`gpg --export-secret-keys --armor <key id>`) and
+`SIGNING_KEY_PASSWORD`. A version on Maven Central can never be changed or removed.
 
 Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
