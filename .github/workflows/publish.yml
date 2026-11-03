@@ -45,10 +45,14 @@ jobs:
             fi
           done
 
-      - name: Build, test and publish
+      # a step of its own: nothing is published unless every test and check passed
+      - name: Build and test
+        run: gradle build
+
+      - name: Publish
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        run: gradle build publishAndReleaseToMavenCentral
+        run: gradle publishAndReleaseToMavenCentral
